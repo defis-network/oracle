@@ -3,7 +3,7 @@
 CONTRACT oracle : public contract
 {
 public:
-   static constexpr eosio::name source_account{"eospricefeed"_n};
+   static constexpr eosio::name source_account{"jinprice1112"_n};
 
    oracle(name receiver, name code, datastream<const char *> ds)
        : contract(receiver, code, ds),
