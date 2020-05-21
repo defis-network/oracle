@@ -1,5 +1,14 @@
 #include <oracle.hpp>
 
+ACTION oracle::init(name source)
+{
+   require_auth(get_self());
+   check(!_globals.exists(), "contract has already been initialized, can not change source after init.");
+   globals glb = _globals.get_or_default(globals{.source = source});
+   glb.source = source;
+   _globals.set(glb, _self);
+}
+
 ACTION oracle::update(name submitter, uint64_t pairid)
 {
    require_auth(submitter); // can be anyone
@@ -7,14 +16,16 @@ ACTION oracle::update(name submitter, uint64_t pairid)
    _sender = submitter;
    _pairid = pairid;
 
-   prices _prices(source_account, source_account.value); // fetch last price info from source
+   globals glb = _globals.get();
 
-   const auto &pricedata = _prices.get(pairid, "no pair found");
+   markets _market(glb.source, glb.source.value); // fetch last price info from source
+
+   const auto &pricedata = _market.get(pairid, "no pair found");
 
    update_all(pricedata);
 }
 
-void oracle::update_all(const price pricedata)
+void oracle::update_all(const market pricedata)
 {
    update_price("10second", pricedata, 10);
 
@@ -34,7 +45,7 @@ void oracle::update_all(const price pricedata)
    update_price("30day", pricedata, 60 * 60 * 24 * 30);
 }
 
-void oracle::update_price(const string period, const price pricedata, const uint64_t key)
+void oracle::update_price(const string period, const market pricedata, const uint64_t key)
 {
    avgprices _avgprices(_self, _pairid);
 
@@ -48,12 +59,12 @@ void oracle::update_price(const string period, const price pricedata, const uint
          s.submitter = _sender;
          s.price0_cumulative_last = pricedata.price0_cumulative_last;
          s.price1_cumulative_last = pricedata.price1_cumulative_last;
-         s.last_update = time_point_sec{current_time_point().sec_since_epoch()};
+         s.last_update = pricedata.last_update;
       });
    }
    else
    {
-      auto timeElapsed = current_time_point().sec_since_epoch() - itr->last_update.sec_since_epoch();
+      auto timeElapsed = pricedata.last_update.sec_since_epoch() - itr->last_update.sec_since_epoch();
 
       // ensure that at least one full period has passed since the last update
       if (timeElapsed >= key && 
@@ -71,7 +82,7 @@ void oracle::update_price(const string period, const price pricedata, const uint
             s.price1_cumulative_last = pricedata.price1_cumulative_last;
             s.price0_avg_price = price0_avg_price;
             s.price1_avg_price = price1_avg_price;
-            s.last_update = time_point_sec{current_time_point().sec_since_epoch()};
+            s.last_update = pricedata.last_update;
          });
 
          st_log data{.key = itr->key,

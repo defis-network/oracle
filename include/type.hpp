@@ -15,22 +15,24 @@ struct st_log
     time_point_sec last_update;
 };
 
-struct price
+struct market
 {
-    uint64_t key;
+    uint64_t mid;
 
     name contract0;
     name contract1;
-
     symbol sym0;
     symbol sym1;
-
+    asset reserve0;
+    asset reserve1;
+    uint64_t liquidity_token;
+    double price0_last; 
+    double price1_last;
     uint64_t price0_cumulative_last;
     uint64_t price1_cumulative_last;
-
     time_point_sec last_update;
 
-    uint64_t primary_key() const { return key; }
+    uint64_t primary_key() const { return mid; }
 };
 
-typedef multi_index<"prices"_n, price> prices;
+typedef multi_index<"markets"_n, market> markets;
